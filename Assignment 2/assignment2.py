@@ -22,16 +22,21 @@ def pkcs7(input):
 
 def ecb_encryption(key, iv, data):
   cipher = AES.new(aes_key, AES.MODE_ECB)
-  ciphertext = cipher.encrypt(input)
+  padded_data = pkcs7(data)
+  ciphertext = b""
+
+  for i in range(0, len(padded_data), AES.block_size):
+    block = padded_data[i:i + AES.block_size]
+    encrypted_block = cipher.encrypt(block)
+    ciphertext += encrypted_block
 
   new_bmp = bmp_header + ciphertext
 
   write_bmp(new_bmp, "ECB_Final.bmp")
 
-  reg_section1 = data[128:257]
-  enc_section1 = ciphertext[128:257]
-  print(reg_section1 == enc_section1)
-
+def cbc_encryption(key, iv, data):
+  cipher = AES.new(aes_key, AES.MODE_ECB)
+  
 orig_bmp = import_bmp()
 bmp_header = orig_bmp[:55]
 bmp_body = orig_bmp[55:]
@@ -42,7 +47,7 @@ input = pkcs7(bmp_body)
 aes_key = create_random_key()
 aes_iv = create_random_iv()
 
-
+ecb_encryption(aes_key, aes_iv, bmp_body)
 
 #hmac = HMAC.new(hmac_key, digestmod=SHA256)
 #tag = hmac.update(cipher.nonce + ciphertext).digest()
