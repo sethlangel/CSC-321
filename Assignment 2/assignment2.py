@@ -20,8 +20,11 @@ def pkcs7(input):
   padding = bytes([padding_len] * padding_len)
   return input + padding
 
-def ecb_encryption(key, iv, data):
-  cipher = AES.new(aes_key, AES.MODE_ECB)
+def xor(input1, input2):
+  return bytes(a ^ b for a, b in zip(input1, input2))
+
+def ecb_encryption(key, data):
+  cipher = AES.new(key, AES.MODE_ECB)
   padded_data = pkcs7(data)
   ciphertext = b""
 
@@ -30,29 +33,35 @@ def ecb_encryption(key, iv, data):
     encrypted_block = cipher.encrypt(block)
     ciphertext += encrypted_block
 
-  new_bmp = bmp_header + ciphertext
+  return ciphertext
 
-  write_bmp(new_bmp, "ECB_Final.bmp")
+def cbc_encryption(key, data):
+  cipher = AES.new(key, AES.MODE_ECB)
+  padded_data = pkcs7(data)
+  ciphertext = b""
 
-def cbc_encryption(key, iv, data):
-  cipher = AES.new(aes_key, AES.MODE_ECB)
+  for i in range(0, len(padded_data), AES.block_size):
+    block = padded_data[i:i + AES.block_size]
+    encrypted_block = cipher.encrypt(block)
+
+    if i > 0:
+      prev_block = ciphertext[i - AES.block_size:i]
+      encrypted_block = xor(encrypted_block, prev_block)
+
+    ciphertext += encrypted_block
+
+  return ciphertext
   
 orig_bmp = import_bmp()
 bmp_header = orig_bmp[:55]
 bmp_body = orig_bmp[55:]
 
-#input = bmp_body.encode()
 input = pkcs7(bmp_body)
 
 aes_key = create_random_key()
-aes_iv = create_random_iv()
 
-ecb_encryption(aes_key, aes_iv, bmp_body)
+ecb_bmp = bmp_header + ecb_encryption(aes_key, bmp_body)
+write_bmp(ecb_bmp, "ECB_Final.bmp")
 
-#hmac = HMAC.new(hmac_key, digestmod=SHA256)
-#tag = hmac.update(cipher.nonce + ciphertext).digest()
-
-#with open("encrypted.bin", "wb") as f:
- #   f.write(tag)
- #   f.write(cipher.nonce)
- #   f.write(ciphertext)
+cbc_bmp = bmp_header + cbc_encryption(aes_key, bmp_body)
+write_bmp(cbc_bmp, "CBC_Final.bmp")
