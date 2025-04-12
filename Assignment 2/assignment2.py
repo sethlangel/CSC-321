@@ -38,16 +38,16 @@ def ecb_encryption(key, data):
 def cbc_encryption(key, data):
   cipher = AES.new(key, AES.MODE_ECB)
   padded_data = pkcs7(data)
-  ciphertext = b""
+  ciphertext = create_random_iv()
 
   for i in range(0, len(padded_data), AES.block_size):
     block = padded_data[i:i + AES.block_size]
-    encrypted_block = cipher.encrypt(block)
 
     if i > 0:
       prev_block = ciphertext[i - AES.block_size:i]
-      encrypted_block = xor(encrypted_block, prev_block)
+      block = xor(block, prev_block)
 
+    encrypted_block = cipher.encrypt(block)
     ciphertext += encrypted_block
 
   return ciphertext
