@@ -1,5 +1,6 @@
 import os
 from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
 
 def import_bmp():
   with open("mustang.bmp", 'rb') as f:
@@ -35,10 +36,10 @@ def ecb_encryption(key, data):
 
   return ciphertext
 
-def cbc_encryption(key, data):
+def cbc_encryption(key, iv, data):
   cipher = AES.new(key, AES.MODE_ECB)
   padded_data = pkcs7(data)
-  ciphertext = create_random_iv()
+  ciphertext = iv
 
   for i in range(0, len(padded_data), AES.block_size):
     block = padded_data[i:i + AES.block_size]
@@ -52,11 +53,11 @@ def cbc_encryption(key, data):
 
   return ciphertext
 
-def submit(input, key):
+def submit(key, iv, input):
   encoded = input.replace(";", "%3D").replace("=", "%2B")
   whatever = "userid=456;userdata=" + encoded + ";session-id=31337"
-  whatever = pkcs7(whatever)
-  return ecb_encryption(key, whatever)
+  whatever = pkcs7(whatever.encode('utf-8'))
+  return cbc_encryption(key, iv, whatever)
   
 orig_bmp = import_bmp()
 bmp_header = orig_bmp[:55]
@@ -65,9 +66,17 @@ bmp_body = orig_bmp[55:]
 input = pkcs7(bmp_body)
 
 aes_key = create_random_key()
+aes_iv = create_random_iv()
 
 ecb_bmp = bmp_header + ecb_encryption(aes_key, bmp_body)
 write_bmp(ecb_bmp, "ECB_Final.bmp")
 
-cbc_bmp = bmp_header + cbc_encryption(aes_key, bmp_body)
+cbc_bmp = bmp_header + cbc_encryption(aes_key, aes_iv, bmp_body)
 write_bmp(cbc_bmp, "CBC_Final.bmp")
+
+encrypted = submit(aes_key, aes_iv, "woohoo")
+#print(encrypted)
+
+cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
+decrypted = cipher.decrypt(encrypted)
+print(unpad(decrypted, AES.block_size).decode())
