@@ -51,6 +51,12 @@ def cbc_encryption(key, data):
     ciphertext += encrypted_block
 
   return ciphertext
+
+def submit(input, key):
+  encoded = input.replace(";", "%3D").replace("=", "%2B")
+  whatever = "userid=456;userdata=" + encoded + ";session-id=31337"
+  whatever = pkcs7(whatever)
+  return ecb_encryption(key, whatever)
   
 orig_bmp = import_bmp()
 bmp_header = orig_bmp[:55]
