@@ -17,7 +17,7 @@ def create_random_iv():
   return os.urandom(16)
 
 def pkcs7(input):
-  padding_len = 128 - (len(input) % 128)
+  padding_len = AES.block_size - (len(input) % AES.block_size)
   padding = bytes([padding_len] * padding_len)
   return input + padding
 
