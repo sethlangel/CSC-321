@@ -39,14 +39,17 @@ def ecb_encryption(key, data):
 def cbc_encryption(key, iv, data):
   cipher = AES.new(key, AES.MODE_ECB)
   padded_data = pkcs7(data)
-  ciphertext = iv
+  ciphertext = b""
 
   for i in range(0, len(padded_data), AES.block_size):
     block = padded_data[i:i + AES.block_size]
 
-    if i > 0:
+    if i == 0:
+      prev_block = iv
+    else:
       prev_block = ciphertext[i - AES.block_size:i]
-      block = xor(block, prev_block)
+      
+    block = xor(block, prev_block)
 
     encrypted_block = cipher.encrypt(block)
     ciphertext += encrypted_block
@@ -56,7 +59,7 @@ def cbc_encryption(key, iv, data):
 def submit(key, iv, input):
   encoded = input.replace(";", "%3D").replace("=", "%2B")
   whatever = "userid=456;userdata=" + encoded + ";session-id=31337"
-  whatever = pkcs7(whatever.encode('utf-8'))
+  whatever = pkcs7(whatever.encode("utf-8"))
   return cbc_encryption(key, iv, whatever)
   
 orig_bmp = import_bmp()
@@ -67,6 +70,8 @@ input = pkcs7(bmp_body)
 
 aes_key = create_random_key()
 aes_iv = create_random_iv()
+# aes_key = b'1234567899999999'
+# aes_iv = b'6969696969696969'
 
 ecb_bmp = bmp_header + ecb_encryption(aes_key, bmp_body)
 write_bmp(ecb_bmp, "ECB_Final.bmp")
@@ -79,4 +84,6 @@ encrypted = submit(aes_key, aes_iv, "woohoo")
 
 cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
 decrypted = cipher.decrypt(encrypted)
-print(unpad(decrypted, AES.block_size).decode())
+# for some reason, cipher.decrypt pads it again. so must unpad twice?
+decrypted = unpad(unpad(decrypted, AES.block_size), AES.block_size)
+print(decrypted)
