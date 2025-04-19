@@ -61,29 +61,71 @@ def submit(key, iv, input):
   whatever = "userid=456;userdata=" + encoded + ";session-id=31337"
   whatever = pkcs7(whatever.encode("utf-8"))
   return cbc_encryption(key, iv, whatever)
+
+def verify(key, iv, cyphertext) -> bool:
+  cipher = AES.new(key, AES.MODE_CBC, iv)
+  decrypted = cipher.decrypt(cyphertext)
+  return decrypted.find(b";admin=true;") != -1
+
+def bit_flipping_attack(key, iv):
+  user_input = "X" * 32
+  cyphertext = submit(key, iv, user_input)
+
+  blocks = []
+  for i in range(0, len(cyphertext), AES.block_size):
+    blocks.append(cyphertext[i:i + AES.block_size])
+
+  cipher = AES.new(key, AES.MODE_CBC, iv)
+  decrypted = cipher.decrypt(cyphertext)
+  decrypted = unpad(decrypted, AES.block_size)
   
-orig_bmp = import_bmp()
-bmp_header = orig_bmp[:55]
-bmp_body = orig_bmp[55:]
+  decrypted_blocks = []
+  for i in range(0, len(decrypted), AES.block_size):
+    decrypted_blocks.append(decrypted[i:i + AES.block_size])
 
-input = pkcs7(bmp_body)
+  target_block_index = 1
+  block_to_modify = target_block_index - 1
+  original_plaintext_block = decrypted_blocks[target_block_index]
 
-aes_key = create_random_key()
-aes_iv = create_random_iv()
-# aes_key = b'1234567899999999'
-# aes_iv = b'6969696969696969'
+  target_text = ";admin=true;"
+  padded_target = pkcs7(target_text.encode("utf-8"))
 
-ecb_bmp = bmp_header + ecb_encryption(aes_key, bmp_body)
-write_bmp(ecb_bmp, "ECB_Final.bmp")
+  xor_mask = xor(original_plaintext_block, padded_target)
 
-cbc_bmp = bmp_header + cbc_encryption(aes_key, aes_iv, bmp_body)
-write_bmp(cbc_bmp, "CBC_Final.bmp")
+  modified_block = xor(blocks[block_to_modify], xor_mask)
 
-encrypted = submit(aes_key, aes_iv, "woohoo")
-#print(encrypted)
+  modified_cyphertext = b"".join(blocks[:block_to_modify]) + modified_block + b"".join(blocks[target_block_index:])
 
-cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-decrypted = cipher.decrypt(encrypted)
-# for some reason, cipher.decrypt pads it again. so must unpad twice?
-decrypted = unpad(unpad(decrypted, AES.block_size), AES.block_size)
-print(decrypted)
+  return modified_cyphertext
+
+
+def main():
+  # AES key & IV
+  key = create_random_key()
+  iv = create_random_iv()
+
+  # Import the image
+  orig_bmp = import_bmp()
+  bmp_header = orig_bmp[:55]
+  bmp_body = orig_bmp[55:]
+
+  # ECB decryption
+  ecb_bmp = bmp_header + ecb_encryption(key, bmp_body)
+  write_bmp(ecb_bmp, "ECB_Final.bmp")
+
+  # CBC decryption
+  cbc_bmp = bmp_header + cbc_encryption(key, iv, bmp_body)
+  write_bmp(cbc_bmp, "CBC_Final.bmp")
+
+  # Bitflip attack
+  modified_cyphertext = bit_flipping_attack(key, iv)
+  success = verify(key, iv, modified_cyphertext)
+  
+  # Decrypt bitflip
+  cipher = AES.new(key, AES.MODE_CBC, iv)
+  decrypted = cipher.decrypt(modified_cyphertext)
+  decrypted = unpad(unpad(decrypted, AES.block_size), AES.block_size)
+  print(decrypted)
+  print("Bitflip attack successful:", success)
+  
+main()
