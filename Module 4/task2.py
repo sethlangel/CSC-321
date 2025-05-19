@@ -3,9 +3,9 @@ import time
 from nltk.corpus import words
 import multiprocessing
 import bcrypt
-import nltk
 import ssl
 
+# import nltk
 # try:
 #     _create_unverified_https_context = ssl._create_unverified_context
 # except AttributeError:
@@ -40,7 +40,7 @@ def main():
             salt = file.split("$")[3][:22]
             hash = file.split("$")[3][22:]
 
-            complete_hash = f"${algorithm}${workfactor}${file.split("$")[3]}"
+            complete_hash = file.split(":")[1]
             print(f"Cracking password for {user} with {num_cores} processes. Hash: {hash}")
 
             start = time.time()
