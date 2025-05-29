@@ -1,0 +1,5 @@
+.vscode
+.micropico
+*.code-workspace
+.DS_Store
+log.txt
